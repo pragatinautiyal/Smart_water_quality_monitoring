@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Water Quality Monitoring</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: url('https://images.unsplash.com/photo-1506744038136-46273834b3fb') no-repeat center center fixed;
+            background-size: cover;
+            color: white;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 40px;
+        }
+
+        h1 {
+            font-size: 60px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: deeppink;
+        }
+
+        h3 {
+            margin-top: 40px;
+            margin-bottom: 10px;
+        }
+
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+            background-color: rgba(255, 255, 255, 0.85);
+            color: black;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .feature-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .feature-group label {
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            background-color: crimson;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        #results {
+            margin-top: 30px;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 600px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Water Quality Monitoring</h1>
+
+        <form id="predictForm">
+            <div class="input-grid">
+                <!-- JavaScript will inject input fields here -->
+            </div>
+            <button type="submit">Predict</button>
+        </form>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const features = ['pH', 'TDS', 'Chlorine', 'EC', 'TOC', 'THM', 'Sulfate', 'Turbidity'];
+        const gridContainer = document.querySelector('.input-grid');
+
+        features.forEach((feature, index) => {
+            gridContainer.innerHTML += `
+                <div class="feature-group">
+                    <label>${feature} (Previous)</label>
+                    <input type="number" step="any" name="prev${index}" required>
+                    <label>${feature} (Current)</label>
+                    <input type="number" step="any" name="curr${index}" required>
+                </div>
+            `;
+        });
+
+        document.getElementById('predictForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const prev = [], curr = [];
+            features.forEach((_, i) => {
+                prev.push(parseFloat(document.querySelector(`[name=prev${i}]`).value));
+                curr.push(parseFloat(document.querySelector(`[name=curr${i}]`).value));
+            });
+
+            const response = await fetch('/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ previous: prev, current: curr })
+            });
+
+            const data = await response.json();
+
+            const results = document.getElementById('results');
+            let alertIcon = data.final_alert.includes("Unsafe") ? "⚠️" : "✅";
+            results.innerHTML = `<h3><strong>${alertIcon} ${data.final_alert}</strong></h3><br>`;
+
+            data.future_predictions.forEach(pred => {
+                const statusColor = pred.prediction === "Safe" ? "green" : "red";
+                results.innerHTML += `
+                    <p>
+                        <strong>${pred.step}:</strong> ${pred.input.join(', ')} →
+                        <span style="font-size: 20px; font-weight: bold; color: ${statusColor};">
+                            ${pred.prediction}
+                        </span>
+                    </p>
+                `;
+            });
+        });
+    </script>
+</body>
+</html>
